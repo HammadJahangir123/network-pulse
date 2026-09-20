@@ -14,7 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      brands: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      stores: {
+        Row: {
+          agent_status: string
+          brand_id: string
+          created_at: string
+          db_name: string
+          id: string
+          ip_address: string
+          last_ping: string | null
+          last_seen: string | null
+          response_time: number | null
+          sequence: number
+          shop_name: string
+          status: string
+          store_code: string
+          updated_at: string
+        }
+        Insert: {
+          agent_status?: string
+          brand_id: string
+          created_at?: string
+          db_name: string
+          id?: string
+          ip_address: string
+          last_ping?: string | null
+          last_seen?: string | null
+          response_time?: number | null
+          sequence: number
+          shop_name: string
+          status?: string
+          store_code: string
+          updated_at?: string
+        }
+        Update: {
+          agent_status?: string
+          brand_id?: string
+          created_at?: string
+          db_name?: string
+          id?: string
+          ip_address?: string
+          last_ping?: string | null
+          last_seen?: string | null
+          response_time?: number | null
+          sequence?: number
+          shop_name?: string
+          status?: string
+          store_code?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
