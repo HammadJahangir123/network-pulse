@@ -80,8 +80,8 @@ function Dashboard() {
   }, [sweep]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load().then(() => refresh());
+  }, [load, refresh]);
 
   useEffect(() => {
     const id = setInterval(() => void refresh(), AUTO_REFRESH_MS);
