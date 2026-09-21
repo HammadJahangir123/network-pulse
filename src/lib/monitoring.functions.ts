@@ -193,3 +193,89 @@ export const pingStore = createServerFn({ method: "POST" })
             : "Ping failed — host unreachable",
     };
   });
+
+type StoreInput = {
+  id?: string | null;
+  brandId: string;
+  sequence: number;
+  storeCode: string;
+  shopName: string;
+  dbName: string;
+  ipAddress: string;
+  agentStatus: AgentStatus;
+};
+
+function validateStore(input: StoreInput): StoreInput {
+  const text = (v: unknown, field: string, max: number) => {
+    const s = typeof v === "string" ? v.trim() : "";
+    if (!s) throw new Error(`${field} is required`);
+    if (s.length > max) throw new Error(`${field} must be under ${max} characters`);
+    return s;
+  };
+  const seq = Number(input?.sequence);
+  if (!Number.isInteger(seq) || seq < 1 || seq > 100000) {
+    throw new Error("Sequence must be a whole number");
+  }
+  const ip = text(input?.ipAddress, "IP address", 45);
+  if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(ip) || ip.split(".").some((p) => Number(p) > 255)) {
+    throw new Error("IP address must look like 192.168.1.10");
+  }
+  const agentStatus = input?.agentStatus;
+  if (!["connected", "disconnected", "unknown"].includes(agentStatus)) {
+    throw new Error("Invalid agent status");
+  }
+  return {
+    id: typeof input?.id === "string" && input.id ? input.id : null,
+    brandId: text(input?.brandId, "Brand", 64),
+    sequence: seq,
+    storeCode: text(input?.storeCode, "Store code", 40),
+    shopName: text(input?.shopName, "Shop name", 120),
+    dbName: text(input?.dbName, "DB name", 120),
+    ipAddress: ip,
+    agentStatus: agentStatus as AgentStatus,
+  };
+}
+
+/** Creates a new store, or updates it when an id is supplied. */
+export const saveStore = createServerFn({ method: "POST" })
+  .inputValidator(validateStore)
+  .handler(async ({ data }): Promise<Snapshot> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const now = new Date().toISOString();
+    const row = {
+      brand_id: data.brandId,
+      sequence: data.sequence,
+      store_code: data.storeCode,
+      shop_name: data.shopName,
+      db_name: data.dbName,
+      ip_address: data.ipAddress,
+      agent_status: data.agentStatus,
+      updated_at: now,
+    };
+
+    const { error } = data.id
+      ? await supabaseAdmin.from("stores").update(row).eq("id", data.id)
+      : await supabaseAdmin.from("stores").insert({ ...row, status: "unknown" });
+
+    if (error) {
+      throw new Error(
+        error.code === "23505"
+          ? "A store with this store code already exists"
+          : error.message,
+      );
+    }
+    return loadSnapshot();
+  });
+
+/** Permanently removes a store. */
+export const deleteStore = createServerFn({ method: "POST" })
+  .inputValidator((input: { storeId: string }) => {
+    if (!input?.storeId || typeof input.storeId !== "string") throw new Error("storeId is required");
+    return { storeId: input.storeId };
+  })
+  .handler(async ({ data }): Promise<Snapshot> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("stores").delete().eq("id", data.storeId);
+    if (error) throw new Error(error.message);
+    return loadSnapshot();
+  });
