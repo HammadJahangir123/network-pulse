@@ -31,7 +31,7 @@ function Card({
 }: {
   label: string;
   value: string;
-  unit?: string;
+  unit?: string | undefined;
   note: string;
   tone?: "ok" | "crit" | "muted";
 }) {
