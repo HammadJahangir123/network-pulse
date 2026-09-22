@@ -4,11 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BrandBreakdown } from "@/components/dashboard/BrandBreakdown";
 import { StoreDetailPanel } from "@/components/dashboard/StoreDetailPanel";
+import {
+  StoreFormDialog,
+  toFormValues,
+  type StoreFormValues,
+} from "@/components/dashboard/StoreFormDialog";
 import { SummaryCards, computeTotals } from "@/components/dashboard/SummaryCards";
 import { EMPTY_FILTERS, StoreTable, applyFilters, type Filters } from "@/components/dashboard/StoreTable";
 import { formatClock } from "@/lib/format";
-import { getSnapshot, pingStore, runSweep } from "@/lib/monitoring.functions";
+import { deleteStore, getSnapshot, pingStore, runSweep, saveStore } from "@/lib/monitoring.functions";
 import type { PingResult, Snapshot, StoreRow } from "@/lib/monitoring-types";
+
 
 const AUTO_REFRESH_MS = 45_000;
 
