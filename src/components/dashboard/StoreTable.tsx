@@ -47,6 +47,8 @@ export function StoreTable({
   pingingIds,
   results,
   onPing,
+  onEdit,
+  onAdd,
   loading,
   error,
 }: {
@@ -60,9 +62,12 @@ export function StoreTable({
   pingingIds: Set<string>;
   results: Record<string, PingResult>;
   onPing: (store: StoreRow) => void;
+  onEdit: (store: StoreRow) => void;
+  onAdd: () => void;
   loading: boolean;
   error: string | null;
 }) {
+
   const set = (key: keyof Filters) => (value: string) =>
     onFilterChange({ ...filters, [key]: value });
 
