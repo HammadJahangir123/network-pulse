@@ -298,6 +298,9 @@ function Dashboard() {
             pingingIds={pingingIds}
             results={results}
             onPing={handlePing}
+            onEdit={openEdit}
+            onAdd={openAdd}
+
             loading={loading}
             error={error}
           />
