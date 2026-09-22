@@ -314,6 +314,20 @@ function Dashboard() {
         onPing={handlePing}
         onClose={() => setSelectedId(null)}
       />
+
+      {formInitial ? (
+        <StoreFormDialog
+          open={formOpen}
+          initial={formInitial}
+          brands={brands}
+          saving={formSaving}
+          error={formError}
+          onCancel={() => setFormOpen(false)}
+          onSave={handleSave}
+          onDelete={handleDelete}
+        />
+      ) : null}
     </div>
+
   );
 }
