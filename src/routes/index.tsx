@@ -4,11 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BrandBreakdown } from "@/components/dashboard/BrandBreakdown";
 import { StoreDetailPanel } from "@/components/dashboard/StoreDetailPanel";
+import {
+  StoreFormDialog,
+  toFormValues,
+  type StoreFormValues,
+} from "@/components/dashboard/StoreFormDialog";
 import { SummaryCards, computeTotals } from "@/components/dashboard/SummaryCards";
 import { EMPTY_FILTERS, StoreTable, applyFilters, type Filters } from "@/components/dashboard/StoreTable";
 import { formatClock } from "@/lib/format";
-import { getSnapshot, pingStore, runSweep } from "@/lib/monitoring.functions";
+import { deleteStore, getSnapshot, pingStore, runSweep, saveStore } from "@/lib/monitoring.functions";
 import type { PingResult, Snapshot, StoreRow } from "@/lib/monitoring-types";
+
 
 const AUTO_REFRESH_MS = 45_000;
 
@@ -38,6 +44,8 @@ function Dashboard() {
   const fetchSnapshot = useServerFn(getSnapshot);
   const sweep = useServerFn(runSweep);
   const ping = useServerFn(pingStore);
+  const save = useServerFn(saveStore);
+  const remove = useServerFn(deleteStore);
 
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,7 +56,12 @@ function Dashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pingingIds, setPingingIds] = useState<Set<string>>(new Set());
   const [results, setResults] = useState<Record<string, PingResult>>({});
+  const [formOpen, setFormOpen] = useState(false);
+  const [formInitial, setFormInitial] = useState<StoreFormValues | null>(null);
+  const [formSaving, setFormSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const busy = useRef(false);
+
 
   const load = useCallback(async () => {
     try {
@@ -140,6 +153,78 @@ function Dashboard() {
     [ping],
   );
 
+  const nextSequence = useMemo(
+    () => (scopedStores.length ? Math.max(...scopedStores.map((s) => s.sequence)) + 1 : 1),
+    [scopedStores],
+  );
+  const defaultBrandId =
+    brandCode === "ALL"
+      ? (brands[0]?.id ?? "")
+      : (brands.find((b) => b.code === brandCode)?.id ?? "");
+
+  const openAdd = useCallback(() => {
+    setFormError(null);
+    setFormInitial(toFormValues(null, brands, defaultBrandId, nextSequence));
+    setFormOpen(true);
+  }, [brands, defaultBrandId, nextSequence]);
+
+  const openEdit = useCallback(
+    (store: StoreRow) => {
+      setFormError(null);
+      setFormInitial(toFormValues(store, brands, defaultBrandId, nextSequence));
+      setFormOpen(true);
+    },
+    [brands, defaultBrandId, nextSequence],
+  );
+
+  const handleSave = useCallback(
+    async (values: StoreFormValues) => {
+      setFormSaving(true);
+      setFormError(null);
+      try {
+        const data = await save({
+          data: {
+            id: values.id,
+            brandId: values.brandId,
+            sequence: Number(values.sequence),
+            storeCode: values.storeCode,
+            shopName: values.shopName,
+            dbName: values.dbName,
+            ipAddress: values.ipAddress,
+            agentStatus: values.agentStatus,
+          },
+        });
+        setSnapshot(data);
+        setFormOpen(false);
+      } catch (e) {
+        setFormError(e instanceof Error ? e.message : "Could not save this store");
+      } finally {
+        setFormSaving(false);
+      }
+    },
+    [save],
+  );
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      setFormSaving(true);
+      setFormError(null);
+      try {
+        const data = await remove({ data: { storeId: id } });
+        setSnapshot(data);
+        setSelectedId((prev) => (prev === id ? null : prev));
+        setFormOpen(false);
+      } catch (e) {
+        setFormError(e instanceof Error ? e.message : "Could not delete this store");
+      } finally {
+        setFormSaving(false);
+      }
+    },
+    [remove],
+  );
+
+
+
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <div className="min-w-0 flex-1">
@@ -213,6 +298,9 @@ function Dashboard() {
             pingingIds={pingingIds}
             results={results}
             onPing={handlePing}
+            onEdit={openEdit}
+            onAdd={openAdd}
+
             loading={loading}
             error={error}
           />
@@ -226,6 +314,20 @@ function Dashboard() {
         onPing={handlePing}
         onClose={() => setSelectedId(null)}
       />
+
+      {formInitial ? (
+        <StoreFormDialog
+          open={formOpen}
+          initial={formInitial}
+          brands={brands}
+          saving={formSaving}
+          error={formError}
+          onCancel={() => setFormOpen(false)}
+          onSave={handleSave}
+          onDelete={handleDelete}
+        />
+      ) : null}
     </div>
+
   );
 }

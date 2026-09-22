@@ -47,6 +47,8 @@ export function StoreTable({
   pingingIds,
   results,
   onPing,
+  onEdit,
+  onAdd,
   loading,
   error,
 }: {
@@ -60,9 +62,12 @@ export function StoreTable({
   pingingIds: Set<string>;
   results: Record<string, PingResult>;
   onPing: (store: StoreRow) => void;
+  onEdit: (store: StoreRow) => void;
+  onAdd: () => void;
   loading: boolean;
   error: string | null;
 }) {
+
   const set = (key: keyof Filters) => (value: string) =>
     onFilterChange({ ...filters, [key]: value });
 
@@ -80,6 +85,13 @@ export function StoreTable({
           >
             Clear filters
           </button>
+          <button
+            onClick={onAdd}
+            className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            + Add Store
+          </button>
+
         </div>
       </div>
 
@@ -94,7 +106,7 @@ export function StoreTable({
               <th className="w-[130px] px-2 text-left font-medium">IP Address</th>
               <th className="w-[140px] px-2 text-left font-medium">Online Status</th>
               <th className="w-[120px] px-2 text-left font-medium">Ping</th>
-              <th className="w-[120px] px-4 text-right font-medium">Actions</th>
+              <th className="w-[170px] px-4 text-right font-medium">Actions</th>
             </tr>
             <tr className="border-b border-border bg-panel/30">
               <th className="px-4 py-2.5">
@@ -225,6 +237,8 @@ export function StoreTable({
                       )}
                     </td>
                     <td className="px-4 py-2 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -249,7 +263,18 @@ export function StoreTable({
                               ? "✕ Failed"
                               : "Ping"}
                       </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(store);
+                        }}
+                        className="rounded-md bg-panel/60 px-2.5 py-1 text-[12px] font-medium text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground"
+                      >
+                        Edit
+                      </button>
+                      </div>
                     </td>
+
                   </tr>
                 );
               })
