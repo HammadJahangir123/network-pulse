@@ -85,6 +85,13 @@ export function StoreTable({
           >
             Clear filters
           </button>
+          <button
+            onClick={onAdd}
+            className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            + Add Store
+          </button>
+
         </div>
       </div>
 
