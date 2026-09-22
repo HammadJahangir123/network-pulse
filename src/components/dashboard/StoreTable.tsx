@@ -237,6 +237,8 @@ export function StoreTable({
                       )}
                     </td>
                     <td className="px-4 py-2 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
