@@ -153,6 +153,78 @@ function Dashboard() {
     [ping],
   );
 
+  const nextSequence = useMemo(
+    () => (scopedStores.length ? Math.max(...scopedStores.map((s) => s.sequence)) + 1 : 1),
+    [scopedStores],
+  );
+  const defaultBrandId =
+    brandCode === "ALL"
+      ? (brands[0]?.id ?? "")
+      : (brands.find((b) => b.code === brandCode)?.id ?? "");
+
+  const openAdd = useCallback(() => {
+    setFormError(null);
+    setFormInitial(toFormValues(null, brands, defaultBrandId, nextSequence));
+    setFormOpen(true);
+  }, [brands, defaultBrandId, nextSequence]);
+
+  const openEdit = useCallback(
+    (store: StoreRow) => {
+      setFormError(null);
+      setFormInitial(toFormValues(store, brands, defaultBrandId, nextSequence));
+      setFormOpen(true);
+    },
+    [brands, defaultBrandId, nextSequence],
+  );
+
+  const handleSave = useCallback(
+    async (values: StoreFormValues) => {
+      setFormSaving(true);
+      setFormError(null);
+      try {
+        const data = await save({
+          data: {
+            id: values.id,
+            brandId: values.brandId,
+            sequence: Number(values.sequence),
+            storeCode: values.storeCode,
+            shopName: values.shopName,
+            dbName: values.dbName,
+            ipAddress: values.ipAddress,
+            agentStatus: values.agentStatus,
+          },
+        });
+        setSnapshot(data);
+        setFormOpen(false);
+      } catch (e) {
+        setFormError(e instanceof Error ? e.message : "Could not save this store");
+      } finally {
+        setFormSaving(false);
+      }
+    },
+    [save],
+  );
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      setFormSaving(true);
+      setFormError(null);
+      try {
+        const data = await remove({ data: { storeId: id } });
+        setSnapshot(data);
+        setSelectedId((prev) => (prev === id ? null : prev));
+        setFormOpen(false);
+      } catch (e) {
+        setFormError(e instanceof Error ? e.message : "Could not delete this store");
+      } finally {
+        setFormSaving(false);
+      }
+    },
+    [remove],
+  );
+
+
+
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <div className="min-w-0 flex-1">
