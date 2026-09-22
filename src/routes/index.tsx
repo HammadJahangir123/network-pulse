@@ -44,6 +44,8 @@ function Dashboard() {
   const fetchSnapshot = useServerFn(getSnapshot);
   const sweep = useServerFn(runSweep);
   const ping = useServerFn(pingStore);
+  const save = useServerFn(saveStore);
+  const remove = useServerFn(deleteStore);
 
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +56,12 @@ function Dashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pingingIds, setPingingIds] = useState<Set<string>>(new Set());
   const [results, setResults] = useState<Record<string, PingResult>>({});
+  const [formOpen, setFormOpen] = useState(false);
+  const [formInitial, setFormInitial] = useState<StoreFormValues | null>(null);
+  const [formSaving, setFormSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const busy = useRef(false);
+
 
   const load = useCallback(async () => {
     try {
