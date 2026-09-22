@@ -106,7 +106,7 @@ export function StoreTable({
               <th className="w-[130px] px-2 text-left font-medium">IP Address</th>
               <th className="w-[140px] px-2 text-left font-medium">Online Status</th>
               <th className="w-[120px] px-2 text-left font-medium">Ping</th>
-              <th className="w-[120px] px-4 text-right font-medium">Actions</th>
+              <th className="w-[170px] px-4 text-right font-medium">Actions</th>
             </tr>
             <tr className="border-b border-border bg-panel/30">
               <th className="px-4 py-2.5">
