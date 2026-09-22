@@ -263,7 +263,18 @@ export function StoreTable({
                               ? "✕ Failed"
                               : "Ping"}
                       </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(store);
+                        }}
+                        className="rounded-md bg-panel/60 px-2.5 py-1 text-[12px] font-medium text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground"
+                      >
+                        Edit
+                      </button>
+                      </div>
                     </td>
+
                   </tr>
                 );
               })
