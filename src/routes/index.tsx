@@ -182,7 +182,7 @@ function Dashboard() {
       setFormSaving(true);
       setFormError(null);
       try {
-        const data = await save({
+        const result = await save({
           data: {
             id: values.id,
             brandId: values.brandId,
@@ -194,7 +194,11 @@ function Dashboard() {
             agentStatus: values.agentStatus,
           },
         });
-        setSnapshot(data);
+        if (!result.ok) {
+          setFormError(result.error);
+          return;
+        }
+        setSnapshot(result.snapshot);
         setFormOpen(false);
       } catch (e) {
         setFormError(e instanceof Error ? e.message : "Could not save this store");

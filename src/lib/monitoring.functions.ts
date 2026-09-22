@@ -239,7 +239,7 @@ function validateStore(input: StoreInput): StoreInput {
 /** Creates a new store, or updates it when an id is supplied. */
 export const saveStore = createServerFn({ method: "POST" })
   .inputValidator(validateStore)
-  .handler(async ({ data }): Promise<Snapshot> => {
+  .handler(async ({ data }): Promise<{ ok: true; snapshot: Snapshot } | { ok: false; error: string }> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const now = new Date().toISOString();
     const row = {
@@ -258,13 +258,15 @@ export const saveStore = createServerFn({ method: "POST" })
       : await supabaseAdmin.from("stores").insert({ ...row, status: "unknown" });
 
     if (error) {
-      throw new Error(
-        error.code === "23505"
-          ? "A store with this store code already exists"
-          : error.message,
-      );
+      return {
+        ok: false,
+        error:
+          error.code === "23505"
+            ? "A store with this store code already exists"
+            : error.message,
+      };
     }
-    return loadSnapshot();
+    return { ok: true, snapshot: await loadSnapshot() };
   });
 
 /** Permanently removes a store. */
