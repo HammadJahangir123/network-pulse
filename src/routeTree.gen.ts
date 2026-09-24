@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicAgentJobsRouteImport } from './routes/api/public/agent/jobs'
+import { Route as ApiPublicAgentResultsRouteImport } from './routes/api/public/agent/results'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAgentJobsRoute = ApiPublicAgentJobsRouteImport.update({
+  id: '/api/public/agent/jobs',
+  path: '/api/public/agent/jobs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicAgentResultsRoute = ApiPublicAgentResultsRouteImport.update({
+  id: '/api/public/agent/results',
+  path: '/api/public/agent/results',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/agent/jobs': typeof ApiPublicAgentJobsRoute
+  '/api/public/agent/results': typeof ApiPublicAgentResultsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/agent/jobs': typeof ApiPublicAgentJobsRoute
+  '/api/public/agent/results': typeof ApiPublicAgentResultsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/agent/jobs': typeof ApiPublicAgentJobsRoute
+  '/api/public/agent/results': typeof ApiPublicAgentResultsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/public/agent/jobs' | '/api/public/agent/results'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/public/agent/jobs' | '/api/public/agent/results'
+  id: '__root__' | '/' | '/api/public/agent/jobs' | '/api/public/agent/results'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicAgentJobsRoute: typeof ApiPublicAgentJobsRoute
+  ApiPublicAgentResultsRoute: typeof ApiPublicAgentResultsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/agent/jobs': {
+      id: '/api/public/agent/jobs'
+      path: '/api/public/agent/jobs'
+      fullPath: '/api/public/agent/jobs'
+      preLoaderRoute: typeof ApiPublicAgentJobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/agent/results': {
+      id: '/api/public/agent/results'
+      path: '/api/public/agent/results'
+      fullPath: '/api/public/agent/results'
+      preLoaderRoute: typeof ApiPublicAgentResultsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicAgentJobsRoute: ApiPublicAgentJobsRoute,
+  ApiPublicAgentResultsRoute: ApiPublicAgentResultsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
