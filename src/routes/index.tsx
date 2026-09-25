@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -12,11 +12,21 @@ import {
 import { SummaryCards, computeTotals } from "@/components/dashboard/SummaryCards";
 import { EMPTY_FILTERS, StoreTable, applyFilters, type Filters } from "@/components/dashboard/StoreTable";
 import { formatClock } from "@/lib/format";
-import { deleteStore, getSnapshot, pingStore, runSweep, saveStore } from "@/lib/monitoring.functions";
-import type { PingResult, Snapshot, StoreRow } from "@/lib/monitoring-types";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  checkAllNow,
+  deleteStore,
+  generateAgentToken,
+  getPingResult,
+  getSnapshot,
+  requestPing,
+  saveStore,
+} from "@/lib/monitoring.functions";
+import type { CheckResult, Snapshot, StoreRow } from "@/lib/monitoring-types";
 
 
-const AUTO_REFRESH_MS = 45_000;
+const AUTO_REFRESH_MS = 30_000;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,27 +51,50 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
+  const navigate = useNavigate();
+  const [authed, setAuthed] = useState(false);
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (!session) void navigate({ to: "/auth" });
+      else setAuthed(true);
+    });
+    void supabase.auth.getSession().then(({ data: d }) => {
+      if (!d.session) void navigate({ to: "/auth" });
+      else setAuthed(true);
+    });
+    return () => data.subscription.unsubscribe();
+  }, [navigate]);
+  if (!authed) {
+    return <div className="flex min-h-screen items-center justify-center bg-background text-[13px] text-faint">Loading…</div>;
+  }
+  return <DashboardInner />;
+}
+
+function DashboardInner() {
   const fetchSnapshot = useServerFn(getSnapshot);
-  const sweep = useServerFn(runSweep);
-  const ping = useServerFn(pingStore);
+  const checkAll = useServerFn(checkAllNow);
+  const ping = useServerFn(requestPing);
+  const poll = useServerFn(getPingResult);
   const save = useServerFn(saveStore);
   const remove = useServerFn(deleteStore);
+  const genToken = useServerFn(generateAgentToken);
 
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [agentToken, setAgentToken] = useState<string | null>(null);
   const [brandCode, setBrandCode] = useState<string>("ALL");
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pingingIds, setPingingIds] = useState<Set<string>>(new Set());
-  const [results, setResults] = useState<Record<string, PingResult>>({});
+  const [results, setResults] = useState<Record<string, CheckResult>>({});
   const [formOpen, setFormOpen] = useState(false);
   const [formInitial, setFormInitial] = useState<StoreFormValues | null>(null);
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const busy = useRef(false);
-
 
   const load = useCallback(async () => {
     try {
@@ -75,32 +108,38 @@ function Dashboard() {
     }
   }, [fetchSnapshot]);
 
+  // Refresh Now: queue checks for the LAN agent (if connected), then reload.
   const refresh = useCallback(async () => {
     if (busy.current) return;
     busy.current = true;
     setRefreshing(true);
     try {
-      const data = await sweep({ data: { brandCode: null } });
-      setSnapshot(data);
-      setError(null);
+      if (snapshotRef.current?.agent.connected && snapshotRef.current.access.canManage) {
+        const res = await checkAll({ data: { brandId: null } });
+        setNotice(res.ok ? null : res.message);
+        await sleep(3000);
+      }
+      await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       busy.current = false;
       setRefreshing(false);
-      setLoading(false);
     }
-  }, [sweep]);
+  }, [checkAll, load]);
+
+  const snapshotRef = useRef<Snapshot | null>(null);
+  snapshotRef.current = snapshot;
 
   useEffect(() => {
-    void load().then(() => refresh());
-  }, [load, refresh]);
-
-  useEffect(() => {
-    const id = setInterval(() => void refresh(), AUTO_REFRESH_MS);
+    void load();
+    const id = setInterval(() => void load(), AUTO_REFRESH_MS);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [load]);
 
+  const agentConnected = snapshot?.agent.connected ?? false;
+  const canManage = snapshot?.access.canManage ?? false;
+  const isAdmin = snapshot?.access.isAdmin ?? false;
   const brands = snapshot?.brands ?? [];
   const allStores = snapshot?.stores ?? [];
 
@@ -120,28 +159,25 @@ function Dashboard() {
     async (store: StoreRow) => {
       setPingingIds((prev) => new Set(prev).add(store.id));
       try {
-        const result = await ping({ data: { storeId: store.id } });
-        setResults((prev) => ({ ...prev, [store.id]: result }));
-        setSnapshot((prev) =>
-          prev
-            ? {
-                ...prev,
-                stores: prev.stores.map((s) =>
-                  s.id === store.id
-                    ? {
-                        ...s,
-                        status: result.status,
-                        responseTime: result.responseTime,
-                        lastPing: result.checkedAt,
-                        lastSeen: result.success ? result.checkedAt : s.lastSeen,
-                      }
-                    : s,
-                ),
-              }
-            : prev,
-        );
+        const req = await ping({ data: { storeId: store.id } });
+        if (!req.ok) {
+          setNotice(req.message);
+          return;
+        }
+        for (let i = 0; i < 20; i++) {
+          await sleep(1500);
+          const r = await poll({ data: { requestId: req.requestId } });
+          if (r.state === "done") {
+            setResults((prev) => ({
+              ...prev,
+              [store.id]: { success: r.success, responseTime: r.responseTime, error: r.error },
+            }));
+            break;
+          }
+        }
+        await load();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Ping failed");
+        setNotice(e instanceof Error ? e.message : "Ping failed");
       } finally {
         setPingingIds((prev) => {
           const next = new Set(prev);
@@ -150,7 +186,7 @@ function Dashboard() {
         });
       }
     },
-    [ping],
+    [ping, poll, load],
   );
 
   const nextSequence = useMemo(
@@ -188,17 +224,17 @@ function Dashboard() {
             brandId: values.brandId,
             sequence: Number(values.sequence),
             storeCode: values.storeCode,
-            shopName: values.shopName,
+            storeName: values.storeName,
             dbName: values.dbName,
-            ipAddress: values.ipAddress,
-            agentStatus: values.agentStatus,
+            localIp: values.localIp,
+            monitoringEnabled: values.monitoringEnabled,
           },
         });
         if (!result.ok) {
           setFormError(result.error);
           return;
         }
-        setSnapshot(result.snapshot);
+        await load();
         setFormOpen(false);
       } catch (e) {
         setFormError(e instanceof Error ? e.message : "Could not save this store");
@@ -206,7 +242,7 @@ function Dashboard() {
         setFormSaving(false);
       }
     },
-    [save],
+    [save, load],
   );
 
   const handleDelete = useCallback(
@@ -214,8 +250,12 @@ function Dashboard() {
       setFormSaving(true);
       setFormError(null);
       try {
-        const data = await remove({ data: { storeId: id } });
-        setSnapshot(data);
+        const res = await remove({ data: { storeId: id } });
+        if (!res.ok) {
+          setFormError(res.error ?? "Could not delete this store");
+          return;
+        }
+        await load();
         setSelectedId((prev) => (prev === id ? null : prev));
         setFormOpen(false);
       } catch (e) {
@@ -224,7 +264,7 @@ function Dashboard() {
         setFormSaving(false);
       }
     },
-    [remove],
+    [remove, load],
   );
 
 
@@ -238,7 +278,14 @@ function Dashboard() {
               <h1 className="text-lg font-semibold tracking-tight">Store Network Monitoring</h1>
               <p className="text-[12px] text-faint">Eastgate Industries PVT Limited · IT Operations</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <span
+                className={`rounded-md px-2 py-1 text-[11px] font-medium ring-1 ${
+                  agentConnected ? "bg-ok/10 text-ok ring-ok/40" : "bg-crit/10 text-crit ring-crit/40"
+                }`}
+              >
+                {agentConnected ? `● Agent connected${snapshot?.agent.name ? ` · ${snapshot.agent.name}` : ""}` : "▲ Monitoring Service Not Connected"}
+              </span>
               <span className="font-mono text-[11px] tabular-nums text-faint">
                 Last updated {formatClock(snapshot?.checkedAt ?? null)}
               </span>
@@ -252,6 +299,13 @@ function Dashboard() {
                 }`}
               >
                 {refreshing ? "Refreshing…" : "Refresh Now"}
+              </button>
+              <button
+                onClick={() => void supabase.auth.signOut()}
+                className="rounded-lg px-2 py-1.5 text-[12px] text-faint hover:bg-panel hover:text-foreground"
+                title={snapshot?.access.email ?? undefined}
+              >
+                Sign out
               </button>
             </div>
           </div>
@@ -287,6 +341,50 @@ function Dashboard() {
         </header>
 
         <main className="p-5">
+          {notice ? (
+            <div role="status" className="mb-4 flex items-center justify-between rounded-lg bg-warn/10 px-3 py-2 text-[12px] text-warn">
+              {notice}
+              <button onClick={() => setNotice(null)} className="text-faint hover:text-foreground">✕</button>
+            </div>
+          ) : null}
+          {snapshot && !agentConnected ? (
+            <div className="panel-glass mb-5 rounded-xl p-4 text-[13px]">
+              <div className="font-medium text-crit">Monitoring Service Not Connected</div>
+              <p className="mt-1 text-[12px] text-faint">
+                Online/offline status appears only once the office LAN monitoring program is running and
+                reporting in. {snapshot.agent.configured ? "A key has been issued but the program hasn't checked in recently." : "No monitoring key has been issued yet."}
+              </p>
+              {isAdmin ? (
+                <div className="mt-3 space-y-2">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const r = await genToken();
+                        setAgentToken(r.token);
+                        await load();
+                      } catch (e) {
+                        setNotice(e instanceof Error ? e.message : "Could not create key");
+                      }
+                    }}
+                    className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    {snapshot.agent.configured ? "Issue new agent key" : "Create agent key"}
+                  </button>
+                  {agentToken ? (
+                    <div className="rounded-md bg-panel/60 p-3 text-[12px] ring-1 ring-border">
+                      <div className="text-faint">Copy this key now — it won't be shown again. On an office PC run:</div>
+                      <code className="mt-1 block break-all font-mono text-[11px]">
+                        EASTGATE_URL={typeof window !== "undefined" ? window.location.origin : ""} EASTGATE_AGENT_TOKEN={agentToken} node eastgate-agent.mjs
+                      </code>
+                      <a href="/agent/eastgate-agent.mjs" download className="mt-2 inline-block text-primary underline">
+                        Download eastgate-agent.mjs
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <SummaryCards totals={totals} scope={scopeLabel} />
           {brandCode === "ALL" ? (
             <BrandBreakdown brands={brands} stores={allStores} onSelect={setBrandCode} />
@@ -301,6 +399,8 @@ function Dashboard() {
             onSelect={(s) => setSelectedId(s.id)}
             pingingIds={pingingIds}
             results={results}
+            agentConnected={agentConnected}
+            canManage={canManage}
             onPing={handlePing}
             onEdit={openEdit}
             onAdd={openAdd}
@@ -315,6 +415,8 @@ function Dashboard() {
         store={selected}
         pinging={selected ? pingingIds.has(selected.id) : false}
         result={selected ? (results[selected.id] ?? null) : null}
+        agentConnected={agentConnected}
+        canManage={canManage}
         onPing={handlePing}
         onClose={() => setSelectedId(null)}
       />
