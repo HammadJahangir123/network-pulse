@@ -1,6 +1,6 @@
 import { StatusBadge } from "./StatusBadge";
 import { formatRelative } from "@/lib/format";
-import type { PingResult, StoreRow } from "@/lib/monitoring-types";
+import type { CheckResult, StoreRow } from "@/lib/monitoring-types";
 
 export type Filters = {
   sequence: string;
@@ -25,9 +25,9 @@ export function applyFilters(stores: StoreRow[], f: Filters): StoreRow[] {
   return stores.filter((s) => {
     if (f.sequence.trim() && !String(s.sequence).startsWith(f.sequence.trim())) return false;
     if (f.storeCode.trim() && !s.storeCode.toLowerCase().includes(t(f.storeCode))) return false;
-    if (f.shopName.trim() && !s.shopName.toLowerCase().includes(t(f.shopName))) return false;
+    if (f.shopName.trim() && !s.storeName.toLowerCase().includes(t(f.shopName))) return false;
     if (f.dbName.trim() && !s.dbName.toLowerCase().includes(t(f.dbName))) return false;
-    if (f.ipAddress.trim() && !s.ipAddress.includes(f.ipAddress.trim())) return false;
+    if (f.ipAddress.trim() && !s.localIp.includes(f.ipAddress.trim())) return false;
     if (f.status !== "all" && s.status !== f.status) return false;
     return true;
   });
@@ -46,6 +46,8 @@ export function StoreTable({
   onSelect,
   pingingIds,
   results,
+  agentConnected,
+  canManage,
   onPing,
   onEdit,
   onAdd,
@@ -60,7 +62,9 @@ export function StoreTable({
   selectedId: string | null;
   onSelect: (store: StoreRow) => void;
   pingingIds: Set<string>;
-  results: Record<string, PingResult>;
+  results: Record<string, CheckResult>;
+  agentConnected: boolean;
+  canManage: boolean;
   onPing: (store: StoreRow) => void;
   onEdit: (store: StoreRow) => void;
   onAdd: () => void;
@@ -85,12 +89,12 @@ export function StoreTable({
           >
             Clear filters
           </button>
-          <button
+          {canManage ? <button
             onClick={onAdd}
             className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             + Add Store
-          </button>
+          </button> : null}
 
         </div>
       </div>
@@ -103,7 +107,7 @@ export function StoreTable({
               <th className="w-[120px] px-2 text-left font-medium">Store Code</th>
               <th className="px-2 text-left font-medium">Shop Name</th>
               <th className="w-[150px] px-2 text-left font-medium">DB Name</th>
-              <th className="w-[130px] px-2 text-left font-medium">IP Address</th>
+              <th className="w-[130px] px-2 text-left font-medium">Local IP</th>
               <th className="w-[140px] px-2 text-left font-medium">Online Status</th>
               <th className="w-[120px] px-2 text-left font-medium">Ping</th>
               <th className="w-[170px] px-4 text-right font-medium">Actions</th>
@@ -165,6 +169,7 @@ export function StoreTable({
                   <option value="all">All</option>
                   <option value="online">Online</option>
                   <option value="offline">Offline</option>
+                  <option value="checking">Checking</option>
                   <option value="unknown">Not checked</option>
                 </select>
               </th>
@@ -207,10 +212,10 @@ export function StoreTable({
                       {String(store.sequence).padStart(2, "0")}
                     </td>
                     <td className="px-2 font-mono font-medium tabular-nums">{store.storeCode}</td>
-                    <td className="px-2">{store.shopName}</td>
+                    <td className="px-2">{store.storeName}</td>
                     <td className="px-2 font-mono text-muted-foreground">{store.dbName}</td>
                     <td className="px-2 font-mono tabular-nums text-muted-foreground">
-                      {store.ipAddress}
+                      {store.localIp}
                     </td>
                     <td className="px-2">
                       {isPinging ? (
@@ -219,12 +224,12 @@ export function StoreTable({
                           Pinging…
                         </span>
                       ) : (
-                        <StatusBadge status={store.status} />
+                        <StatusBadge status={store.status} agentConnected={agentConnected} />
                       )}
                     </td>
                     <td
                       className="px-2 font-mono text-[12px] tabular-nums"
-                      title={`Last checked ${formatRelative(store.lastPing)}`}
+                      title={`Last checked ${formatRelative(store.lastChecked)}`}
                     >
                       {isPinging ? (
                         <span className="animate-pingsoft text-faint">—</span>
@@ -239,12 +244,14 @@ export function StoreTable({
                     <td className="px-4 py-2 text-right">
                       <div className="flex items-center justify-end gap-1.5">
 
+                      {canManage ? (<>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onPing(store);
                         }}
-                        disabled={isPinging}
+                        disabled={isPinging || !agentConnected}
+                        title={agentConnected ? "Ping this store" : "Monitoring Service Not Connected"}
                         className={`rounded-md px-2.5 py-1 text-[12px] font-medium ring-1 transition-colors ${
                           isPinging
                             ? "animate-pingsoft bg-panel/60 text-faint ring-border"
@@ -272,6 +279,7 @@ export function StoreTable({
                       >
                         Edit
                       </button>
+                      </>) : <span className="text-[11px] text-faint">View only</span>}
                       </div>
                     </td>
 

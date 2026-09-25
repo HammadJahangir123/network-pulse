@@ -33,9 +33,17 @@ export const Route = createFileRoute("/api/public/agent/results")({
 
         for (const r of parsed.data.results) {
           const at = r.checkedAt ?? nowIso;
-          const update: Record<string, unknown> = {
+          const update: {
+            status: string;
+            response_time: number | null;
+            last_ping: string;
+            last_error: string | null;
+            agent_status: string;
+            updated_at: string;
+            last_seen?: string;
+          } = {
             status: r.success ? "online" : "offline",
-            response_time: r.success ? r.responseTime : null,
+            response_time: r.success ? (r.responseTime ?? null) : null,
             last_ping: at,
             last_error: r.success ? null : (r.error ?? "Request timed out"),
             agent_status: "connected",

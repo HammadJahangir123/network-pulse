@@ -15,7 +15,7 @@ export function computeTotals(stores: StoreRow[]): Totals {
     total: stores.length,
     online: online.length,
     offline: stores.filter((s) => s.status === "offline").length,
-    unknown: stores.filter((s) => s.status === "unknown").length,
+    unknown: stores.filter((s) => s.status === "unknown" || s.status === "checking").length,
     avgResponse: times.length
       ? Math.round(times.reduce((a, b) => a + b, 0) / times.length)
       : null,

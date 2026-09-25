@@ -58,3 +58,6 @@ export type PingPoll =
     };
 
 export const AGENT_STALE_MS = 90_000;
+
+/** Last manual check result shown in the UI for a store. */
+export type CheckResult = { success: boolean; responseTime: number | null; error: string | null };
