@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 
-import type { AgentStatus, Brand, StoreRow } from "@/lib/monitoring-types";
+import type { Brand, StoreRow } from "@/lib/monitoring-types";
 
 export type StoreFormValues = {
   id: string | null;
   brandId: string;
   sequence: string;
   storeCode: string;
-  shopName: string;
+  storeName: string;
   dbName: string;
-  ipAddress: string;
-  agentStatus: AgentStatus;
+  localIp: string;
+  monitoringEnabled: boolean;
 };
 
 function emptyValues(brandId: string, nextSequence: number): StoreFormValues {
@@ -19,10 +19,10 @@ function emptyValues(brandId: string, nextSequence: number): StoreFormValues {
     brandId,
     sequence: String(nextSequence),
     storeCode: "",
-    shopName: "",
+    storeName: "",
     dbName: "",
-    ipAddress: "",
-    agentStatus: "connected",
+    localIp: "",
+    monitoringEnabled: true,
   };
 }
 
@@ -38,10 +38,10 @@ export function toFormValues(
     brandId: store.brandId,
     sequence: String(store.sequence),
     storeCode: store.storeCode,
-    shopName: store.shopName,
+    storeName: store.storeName,
     dbName: store.dbName,
-    ipAddress: store.ipAddress,
-    agentStatus: store.agentStatus,
+    localIp: store.localIp,
+    monitoringEnabled: store.monitoringEnabled,
   };
 }
 
@@ -155,12 +155,12 @@ export function StoreFormDialog({
           </label>
 
           <label className="text-[12px] text-muted-foreground">
-            Shop name
+            Store name
             <input
               required
               maxLength={120}
-              value={values.shopName}
-              onChange={(e) => set("shopName")(e.target.value)}
+              value={values.storeName}
+              onChange={(e) => set("storeName")(e.target.value)}
               placeholder="Gulberg Flagship"
               className={`mt-1 ${field}`}
             />
@@ -179,28 +179,26 @@ export function StoreFormDialog({
           </label>
 
           <label className="text-[12px] text-muted-foreground">
-            IP address
+            Local IP
             <input
               required
               maxLength={45}
-              value={values.ipAddress}
-              onChange={(e) => set("ipAddress")(e.target.value)}
+              value={values.localIp}
+              onChange={(e) => set("localIp")(e.target.value)}
               placeholder="192.168.10.5"
               className={`mt-1 font-mono ${field}`}
             />
           </label>
 
           <label className="text-[12px] text-muted-foreground sm:col-span-2">
-            Agent status
-            <select
-              value={values.agentStatus}
-              onChange={(e) => set("agentStatus")(e.target.value)}
-              className={`mt-1 ${field}`}
-            >
-              <option value="connected">Connected</option>
-              <option value="disconnected">Disconnected</option>
-              <option value="unknown">Unknown</option>
-            </select>
+            <span className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={values.monitoringEnabled}
+                onChange={(e) => setValues((prev) => ({ ...prev, monitoringEnabled: e.target.checked }))}
+              />
+              Include this store in automatic network checks
+            </span>
           </label>
         </div>
 
