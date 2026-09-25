@@ -374,7 +374,7 @@ function DashboardInner() {
                     <div className="rounded-md bg-panel/60 p-3 text-[12px] ring-1 ring-border">
                       <div className="text-faint">Copy this key now — it won't be shown again. On an office PC run:</div>
                       <code className="mt-1 block break-all font-mono text-[11px]">
-                        EASTGATE_URL={typeof window !== "undefined" ? window.location.origin : ""} EASTGATE_AGENT_TOKEN={agentToken} node eastgate-agent.mjs
+                        DASHBOARD_URL={typeof window !== "undefined" ? window.location.origin : ""} AGENT_TOKEN={agentToken} node eastgate-agent.mjs
                       </code>
                       <a href="/agent/eastgate-agent.mjs" download className="mt-2 inline-block text-primary underline">
                         Download eastgate-agent.mjs
