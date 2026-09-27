@@ -1,4 +1,4 @@
-import logoAsset from "@/assets/eastgate-logo.png.asset.json";
+import logoAsset from "@/assets/eastgate-logo-cropped.png.asset.json";
 
 type EastgateLogoProps = {
   className?: string;
