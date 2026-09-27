@@ -276,7 +276,7 @@ function DashboardInner() {
         <header className="sticky top-0 z-10 border-b border-border bg-background/80 px-5 py-4 backdrop-blur-xl">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-4">
-              <EastgateLogo className="h-9 w-auto max-w-[145px] shrink-0" />
+              <EastgateLogo className="h-10 w-10 shrink-0" />
               <div className="border-l border-border pl-4">
                 <h1 className="text-lg font-semibold">Store IT Dashboard</h1>
                 <p className="text-[12px] text-faint">Infrastructure monitoring · IT Operations</p>
