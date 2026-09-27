@@ -79,7 +79,7 @@ function AuthPage() {
       <div className="absolute inset-x-0 top-0 h-1 bg-primary" />
       <form onSubmit={submit} className="panel-glass w-full max-w-md rounded-xl p-6 sm:p-8">
         <div className="mb-8 border-b border-border pb-6">
-          <EastgateLogo className="h-11 w-auto max-w-[190px]" />
+          <EastgateLogo className="h-14 w-14" />
           <p className="mt-5 text-[11px] font-medium uppercase text-faint">Store IT Management</p>
           <h1 className="mt-1 text-2xl font-semibold">
             {mode === "signin" ? "Welcome back" : "Create your account"}
